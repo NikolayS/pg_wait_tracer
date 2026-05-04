@@ -34,6 +34,39 @@ Overhead scales with wait event transition rate: ~6% on write-heavy OLTP,
 up to ~30% on read-heavy workloads with high buffer miss rates. See
 [Performance](#performance) for details.
 
+> **Requirements — Linux only.** pg_wait_tracer relies on Linux-specific
+> facilities (eBPF, `perf_event_open`, CPU hardware watchpoints) and cannot
+> run on macOS, Windows, or \*BSD. Minimum environment:
+>
+> - **Linux kernel >= 5.8** with BTF enabled (`/sys/kernel/btf/vmlinux` present)
+> - **Architecture**: x86_64 or aarch64
+> - **Privileges**: root, or `CAP_BPF` + `CAP_PERFMON` + `CAP_SYS_PTRACE`
+>   (older kernels: `CAP_SYS_ADMIN` + `CAP_SYS_PTRACE`)
+> - **PostgreSQL**: 17 or 18 (full support); 14-16 (limited — see
+>   [INSTALL.md](INSTALL.md))
+>
+> The web client (`pgwt`) and offline replay (`pg_wait_tracer --replay`,
+> `pgwt-server --dump`) do not require root or Linux on the *client* side —
+> only the DB server where tracing runs must meet the requirements above.
+
+## Demo
+
+Captured from a 60-second pgbench TPC-B workload (8 clients, scale 10) on a
+tiny VM (2 vCPUs, Rocky 9 + PostgreSQL 18), with a few injected `LOCK TABLE`
+statements to add lock contention. ~7M wait-event transitions captured. See
+[`demos/README.md`](demos/README.md) for the recording tooling (one
+`make all` reproduces both gifs from a fresh VM).
+
+**Web investigation client** (`pgwt`) — drag-zoom AAS chart → drill into
+Events / Sessions / Queries → wait-event transition graph:
+
+![pgwt web UI](demos/web.gif)
+
+**Text dump** (`pgwt-server --dump`) — time model + top events + top sessions
++ top queries from any trace file, no TUI required:
+
+![pgwt-server --dump](demos/dump.gif)
+
 ## Quick Start
 
 ```bash
